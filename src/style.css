@@ -3,12 +3,12 @@
   --bg-gradient: radial-gradient(circle at 10% 20%, rgb(18, 16, 35) 0%, rgb(9, 8, 16) 90%);
   --glow-violet: rgba(138, 43, 226, 0.4);
   --glow-blue: rgba(30, 144, 255, 0.3);
-  
+
   --primary-color: #7b2cbf;
   --primary-hover: #9d4edd;
   --secondary-color: #3f37c9;
   --secondary-hover: #4895ef;
-  
+
   --text-main: #f8f9fa;
   --text-muted: #b0b3b8;
   --text-correct: #4ade80;
@@ -89,6 +89,7 @@ body::after {
   font-weight: 700;
   background: linear-gradient(135deg, #a29bfe, #fd79a8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline-flex;
   align-items: center;
@@ -315,7 +316,8 @@ p.intro-text {
 .vibhatti-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 8px; /* เว้นระยะห่างระหว่างแถว */
+  border-spacing: 0 8px;
+  /* เว้นระยะห่างระหว่างแถว */
 }
 
 /* หัวตาราง */
@@ -393,7 +395,8 @@ p.intro-text {
   color: #ffffff;
   padding: 6px 14px;
   border-radius: 20px;
-  font-size: 1.1rem; /* ขยายฟอนต์ให้อ่านง่าย */
+  font-size: 1.1rem;
+  /* ขยายฟอนต์ให้อ่านง่าย */
   font-weight: 600;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   cursor: grab;
@@ -466,7 +469,8 @@ p.intro-text {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
-  font-size: 1.1rem; /* ขยายขนาดตัวหนังสือ */
+  font-size: 1.1rem;
+  /* ขยายขนาดตัวหนังสือ */
   font-weight: 600;
   padding: 0.7rem 1.4rem;
   border-radius: 10px;
@@ -627,11 +631,11 @@ code {
   body {
     padding: 1rem 0.5rem;
   }
-  
+
   .app-header h1 {
     font-size: 2.2rem;
   }
-  
+
   .card {
     padding: 1.2rem;
   }
@@ -641,7 +645,7 @@ code {
     font-size: 0.9rem;
     padding: 8px 6px;
   }
-  
+
   .drop-zone {
     min-width: 140px;
     padding: 6px;
@@ -656,7 +660,7 @@ code {
     font-size: 0.95rem;
     padding: 0.5rem 1rem;
   }
-  
+
   .word-card {
     padding: 1rem;
     flex-direction: column;
