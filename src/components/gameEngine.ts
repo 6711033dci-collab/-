@@ -8,6 +8,11 @@ export class GameEngine {
   private placements: Map<string, UserPlacement> = new Map();
   private deck: GameCard[] = [];
 
+  // ⏱️ เพิ่ม State สำหรับจับเวลา และสถิติ
+  private startTime: number = 0;
+  private endTime: number = 0;
+  private isPlaying: boolean = false;
+
   constructor() {
     this.resetPlacements();
   }
@@ -23,7 +28,7 @@ export class GameEngine {
         this.placements.set(key, {
           vibhatti,
           vacana,
-          cards: [] // ✅ เริ่มต้นด้วย Array ว่างเพื่อรับการ์ดหลายใบ
+          cards: []
         });
       }
     }
@@ -52,18 +57,41 @@ export class GameEngine {
 
     // สลับตำแหน่งการ์ดในกอง
     this.deck.sort(() => Math.random() - 0.5);
+
+    // ⏱️ เริ่มจับเวลาเมื่อเริ่มเกม
+    this.startTimer();
+
     return this.currentWord;
+  }
+
+  // ⏱️ ระบบจับเวลา (Timer Functions)
+  public startTimer(): void {
+    this.startTime = performance.now();
+    this.endTime = 0;
+    this.isPlaying = true;
+  }
+
+  public stopTimer(): number {
+    if (!this.isPlaying) return this.getTimeElapsed();
+    this.endTime = performance.now();
+    this.isPlaying = false;
+    return this.getTimeElapsed();
+  }
+
+  // ดึงเวลาปัจจุบันที่ใช้ไป (วินาที ทศนิยม 2 ตำแหน่ง)
+  public getTimeElapsed(): number {
+    if (this.startTime === 0) return 0;
+    const now = this.isPlaying ? performance.now() : this.endTime;
+    const seconds = (now - this.startTime) / 1000;
+    return Number(seconds.toFixed(2));
   }
 
   public getCurrentWord(): VocabularyNoun | null { return this.currentWord; }
   public getDeck(): GameCard[] { return this.deck; }
   public getPlacements(): Map<string, UserPlacement> { return this.placements; }
 
-  // ✅ วางการ์ดลงช่อง (ย้ายการ์ดเดิมถ้าเคยวางไว้ที่อื่น แล้ว Push เข้า Array ของช่องใหม่)
   public placeCard(vibhatti: VibhattiType, vacana: VacanaType, cardId: string, text: string): void {
     const key = `${vibhatti}-${vacana}`;
-
-    // ถอนการ์ดนี้ออกจากช่องเดิมก่อน (ถ้าวางซ้ำที่อื่น)
     this.removeCardById(cardId);
 
     const slot = this.placements.get(key);
@@ -72,25 +100,26 @@ export class GameEngine {
     }
   }
 
-  // ✅ ลบการ์ดใบที่ระบุออกจากตารางตาม cardId
   public removeCardById(cardId: string): void {
     for (const [_, p] of this.placements.entries()) {
       p.cards = p.cards.filter(c => c.cardId !== cardId);
     }
   }
 
-  // Fallback เผื่อ uiManager เรียกใช้ removeCard แบบเดิม
   public removeCard(vibhatti: VibhattiType, vacana: VacanaType): void {
     const key = `${vibhatti}-${vacana}`;
     const slot = this.placements.get(key);
     if (slot && slot.cards.length > 0) {
-      slot.cards.pop(); // ลบใบสุดท้ายออก
+      slot.cards.pop();
     }
   }
 
-  // ✅ ตรวจคำตอบ: ตรวจสอบความถูกต้องและคิดคะแนน
+  // ✅ ตรวจคำตอบ: หยุดจับเวลา และคำนวณคะแนน + เวลา
   public checkAnswers() {
     if (!this.currentWord) throw new Error('No active word.');
+
+    // ⏱️ หยุดจับเวลาทันทีที่กดตรวจคำตอบ
+    const timeTaken = this.stopTimer();
 
     let correctCount = 0;
     let totalCards = this.deck.length;
@@ -108,12 +137,10 @@ export class GameEngine {
       const userPlacement = this.placements.get(key);
       const userAnswers = userPlacement ? userPlacement.cards.map(c => c.text) : [];
 
-      // กรองเฉพาะคำตอบที่ไม่ซ้ำ และอยู่ในเฉลยเพื่อคิดคะแนน
       const uniqueUserAnswers = Array.from(new Set(userAnswers));
       const validPlacedCards = uniqueUserAnswers.filter(ans => decl.answers.includes(ans));
       correctCount += validPlacedCards.length;
 
-      // ช่องนี้ถูก 100% ต่อเมื่อ จำนวนคำถูกต้องครบ และ ไม่มีคำตอบผิดเกินมา
       const isCorrect = decl.answers.length === userAnswers.length &&
                         decl.answers.every(ans => userAnswers.includes(ans));
 
@@ -128,11 +155,31 @@ export class GameEngine {
 
     this.score = correctCount;
 
+    // 💾 บันทึกสถิติลง localStorage อัตโนมัติ (สถิติเวลาที่เร็วที่สุด)
+    this.saveBestTime(timeTaken, correctCount, totalCards);
+
     return {
       score: this.score,
       total: totalCards,
+      timeTaken, // ⏱️ ส่งเวลาที่ใช้คืนกลับไปด้วย
       results
     };
+  }
+
+  // 💾 บันทึกสถิติสถิติลง LocalStorage
+  private saveBestTime(timeTaken: number, score: number, total: number): void {
+    if (score !== total) return; // บันทึกเฉพาะรอบที่ตอบถูกหมด 100% เท่านั้น
+
+    const bestTime = localStorage.getItem('pali_best_time');
+    if (!bestTime || timeTaken < parseFloat(bestTime)) {
+      localStorage.setItem('pali_best_time', timeTaken.toString());
+    }
+  }
+
+  // 🏆 ดึงสถิติเวลาที่ทำไว้เร็วที่สุด
+  public getBestTime(): string {
+    const best = localStorage.getItem('pali_best_time');
+    return best ? `${best} วินาที` : 'ยังไม่มีสถิติ';
   }
 
   public getScore(): number { return this.score; }

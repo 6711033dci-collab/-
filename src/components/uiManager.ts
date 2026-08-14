@@ -64,8 +64,8 @@ export class UIManager {
     // Reset board
     this.btnReset.addEventListener('click', () => this.handleResetBoard());
 
-    // Restart game
-    this.btnRestart.addEventListener('click', () => this.handleRestartGame());
+    // Play Next / Restart game (เริ่มเล่นคำถัดไปทันที)
+    this.btnRestart.addEventListener('click', () => this.handleStartGame());
   }
 
   private switchScreen(screen: HTMLElement): void {
@@ -89,10 +89,6 @@ export class UIManager {
     this.switchScreen(this.playScreen);
   }
 
-  private handleRestartGame(): void {
-    this.switchScreen(this.startScreen);
-  }
-
   private handleResetBoard(): void {
     // ล้างการ์ดออกจากทุกช่องบนตาราง
     const placements = this.engine.getPlacements();
@@ -109,24 +105,29 @@ export class UIManager {
     const checkResult = this.engine.checkAnswers();
     const currentWord = this.engine.getCurrentWord();
     
-    // Update score
+    // Update score & time
     this.finalScore.innerText = `${checkResult.score} / ${checkResult.total}`;
     
-    // Generate feedback message
-    let feedback = '';
+    // Generate feedback message พร้อมแสดงเวลาที่ใช้ และสถิติ
     const pct = checkResult.total > 0 ? checkResult.score / checkResult.total : 0;
     const wordName = currentWord ? currentWord.word : 'ศัพท์หลัก';
+    const bestTime = this.engine.getBestTime();
+
+    let feedback = `⏱️ คุณใช้เวลาแจกวิภัตติ: ${checkResult.timeTaken} วินาที\n🏆 สถิติเร็วที่สุดในเครื่อง: ${bestTime}\n\n`;
 
     if (pct === 1) {
-      feedback = `สุดยอดมาก! 🎉 คุณตอบถูกวิภัตติของ ${wordName} ครบถ้วน 100%`;
+      feedback += `สุดยอดมาก! 🎉 คุณตอบถูกวิภัตติของ ${wordName} ครบถ้วน 100%`;
     } else if (pct >= 0.7) {
-      feedback = `เก่งมากครับ! 😊 คุณจำวิภัตติส่วนใหญ่ของ ${wordName} ได้ถูกต้องแล้ว`;
+      feedback += `เก่งมากครับ! 😊 คุณจำวิภัตติส่วนใหญ่ของ ${wordName} ได้ถูกต้องแล้ว`;
     } else if (pct >= 0.4) {
-      feedback = 'พยายามต่อไปครับ! 👍 ลองทบทวนตารางแจกวิภัตติเพิ่มเติมอีกนิดนะครับ';
+      feedback += 'พยายามต่อไปครับ! 👍 ลองทบทวนตารางแจกวิภัตติเพิ่มเติมอีกนิดนะครับ';
     } else {
-      feedback = 'ลองใหม่อีกครั้งนะครับ! 📖 มาทบทวนตารางวิภัตติไปด้วยกัน';
+      feedback += 'ลองใหม่อีกครั้งนะครับ! 📖 มาทบทวนตารางวิภัตติไปด้วยกัน';
     }
     this.feedbackMessage.innerText = feedback;
+
+    // เปลี่ยนข้อความปุ่มให้เหมาะกับการเล่นรอบถัดไป
+    this.btnRestart.innerText = '🔄 เล่นคำถัดไป / เริ่มใหม่';
 
     // Render review items
     this.renderReviewList(checkResult.results);
@@ -134,7 +135,7 @@ export class UIManager {
     this.switchScreen(this.resultsScreen);
   }
 
-  // ✅ ปรับปรุงการ Render ตารางแบบ Table ให้แสดงหลายการ์ดใน 1 ช่องได้อย่างสมบูรณ์
+  // ✅ Render ตารางแบบ Table
   private renderBoard(): void {
     this.boardGrid.innerHTML = '';
     const vibhattis: VibhattiType[] = ['ปฐมา', 'ทุติยา', 'ตติยา', 'จตุตถี', 'ปัญจมี', 'ฉัฏฐี', 'สัตตมี', 'อาลปนะ'];
@@ -203,7 +204,7 @@ export class UIManager {
             });
             card.appendChild(btnRemove);
 
-            // Setup Drag events บนการ์ดที่ถูกวางแล้ว
+            // Setup Drag events
             card.addEventListener('dragstart', (e) => this.handleDragStart(e, cardData.cardId, cardData.text));
             card.addEventListener('dragend', () => this.handleDragEnd());
 
@@ -241,7 +242,6 @@ export class UIManager {
     const deck = this.engine.getDeck();
     const placements = this.engine.getPlacements();
 
-    // รวม ID ของการ์ดทั้งหมดที่ถูกวางอยู่บนกระดาน
     const placedCardIds = new Set<string>();
     placements.forEach(p => {
       if (p.cards) {
@@ -311,11 +311,7 @@ export class UIManager {
     if (e.dataTransfer) {
       try {
         const { id, text } = JSON.parse(e.dataTransfer.getData('text/plain'));
-        
-        // Update model
         this.engine.placeCard(vibhatti, vacana, id, text);
-
-        // Re-render
         this.renderBoard();
         this.renderDeck();
       } catch (err) {
@@ -353,7 +349,7 @@ export class UIManager {
     }
   }
 
-  // --- Render review items when submitted ---
+  // --- Render review items ---
   private renderReviewList(results: any[]): void {
     this.reviewList.innerHTML = '';
     
