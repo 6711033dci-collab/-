@@ -3,8 +3,11 @@ import { VibhattiType, VacanaType } from '../types';
 
 export class UIManager {
   private engine: GameEngine;
-  
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private startTime: number = 0;
+
   // DOM Elements
+  private currentTimer!: HTMLElement;
   private startScreen!: HTMLElement;
   private playScreen!: HTMLElement;
   private resultsScreen!: HTMLElement;
@@ -13,6 +16,7 @@ export class UIManager {
   private btnReset!: HTMLButtonElement;
   private btnSubmit!: HTMLButtonElement;
   private btnRestart!: HTMLButtonElement;
+  private btnHome!: HTMLButtonElement; // 👈 เพิ่มปุ่มหน้าแรก
 
   private currentWordTitle!: HTMLElement;
   private currentWordDesc!: HTMLElement;
@@ -34,6 +38,7 @@ export class UIManager {
   }
 
   private initializeDOMElements(): void {
+    this.currentTimer = document.getElementById('current-timer')!;
     this.startScreen = document.getElementById('start-screen')!;
     this.playScreen = document.getElementById('play-screen')!;
     this.resultsScreen = document.getElementById('results-screen')!;
@@ -42,6 +47,7 @@ export class UIManager {
     this.btnReset = document.getElementById('btn-reset') as HTMLButtonElement;
     this.btnSubmit = document.getElementById('btn-submit') as HTMLButtonElement;
     this.btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
+    this.btnHome = document.getElementById('btn-home') as HTMLButtonElement; // 👈 ดึง Element #btn-home
 
     this.currentWordTitle = document.getElementById('current-word-title')!;
     this.currentWordDesc = document.getElementById('current-word-desc')!;
@@ -66,6 +72,34 @@ export class UIManager {
 
     // Play Next / Restart game (เริ่มเล่นคำถัดไปทันที)
     this.btnRestart.addEventListener('click', () => this.handleStartGame());
+
+    // ✅ กลับหน้าแรก
+    if (this.btnHome) {
+      this.btnHome.addEventListener('click', () => {
+        this.stopLiveTimer();
+        this.switchScreen(this.startScreen);
+      });
+    }
+  }
+
+  // --- Live Timer Controls ---
+  private startLiveTimer(): void {
+    this.stopLiveTimer(); // เคลียร์ interval เก่าถ้ามี
+
+    this.startTime = Date.now();
+    this.timerInterval = setInterval(() => {
+      if (this.currentTimer) {
+        const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
+        this.currentTimer.innerText = elapsed;
+      }
+    }, 100);
+  }
+
+  private stopLiveTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
   }
 
   private switchScreen(screen: HTMLElement): void {
@@ -76,7 +110,7 @@ export class UIManager {
 
   private handleStartGame(): void {
     const word = this.engine.startNewGame();
-    
+
     // Set UI details
     this.currentWordTitle.innerText = `ศัพท์หลัก: ${word.word}`;
     this.currentWordDesc.innerText = `${word.declensionType} | คำแปล: ${word.translation}`;
@@ -85,8 +119,9 @@ export class UIManager {
     // Render elements
     this.renderBoard();
     this.renderDeck();
-    
+
     this.switchScreen(this.playScreen);
+    this.startLiveTimer(); // สั่งเริ่มนับเวลาสด
   }
 
   private handleResetBoard(): void {
@@ -102,12 +137,14 @@ export class UIManager {
   }
 
   private handleSubmitAnswers(): void {
+    this.stopLiveTimer(); // หยุดนับเวลาสดเมื่อส่งคำตอบ
+
     const checkResult = this.engine.checkAnswers();
     const currentWord = this.engine.getCurrentWord();
-    
+
     // Update score & time
     this.finalScore.innerText = `${checkResult.score} / ${checkResult.total}`;
-    
+
     // Generate feedback message พร้อมแสดงเวลาที่ใช้ และสถิติ
     const pct = checkResult.total > 0 ? checkResult.score / checkResult.total : 0;
     const wordName = currentWord ? currentWord.word : 'ศัพท์หลัก';
@@ -135,7 +172,7 @@ export class UIManager {
     this.switchScreen(this.resultsScreen);
   }
 
-  // ✅ Render ตารางแบบ Table
+  // Render ตารางแบบ Table
   private renderBoard(): void {
     this.boardGrid.innerHTML = '';
     const vibhattis: VibhattiType[] = ['ปฐมา', 'ทุติยา', 'ตติยา', 'จตุตถี', 'ปัญจมี', 'ฉัฏฐี', 'สัตตมี', 'อาลปนะ'];
@@ -181,7 +218,7 @@ export class UIManager {
         const cardsWrapper = document.createElement('div');
         cardsWrapper.className = 'cards-wrapper';
 
-        if (p.cards && p.cards.length > 0) {
+        if (p && p.cards && p.cards.length > 0) {
           p.cards.forEach(cardData => {
             const card = document.createElement('div');
             card.className = 'placed-card';
@@ -223,7 +260,7 @@ export class UIManager {
         tdSlot.addEventListener('dragover', (e) => this.handleDragOver(e));
         tdSlot.addEventListener('dragleave', () => tdSlot.classList.remove('drag-over'));
         tdSlot.addEventListener('drop', (e) => this.handleDrop(e, vibhatti, vacana));
-        
+
         // Tap selection สำหรับจอมือถือ
         tdSlot.addEventListener('click', () => this.handleSlotClick(vibhatti, vacana));
 
@@ -244,7 +281,7 @@ export class UIManager {
 
     const placedCardIds = new Set<string>();
     placements.forEach(p => {
-      if (p.cards) {
+      if (p && p.cards) {
         p.cards.forEach(c => placedCardIds.add(c.cardId));
       }
     });
@@ -338,12 +375,12 @@ export class UIManager {
     if (this.selectedSourceCard) {
       const id = this.selectedSourceCard.id;
       const text = this.selectedSourceCard.innerText;
-      
+
       this.engine.placeCard(vibhatti, vacana, id, text);
-      
+
       this.selectedSourceCard.classList.remove('selected');
       this.selectedSourceCard = null;
-      
+
       this.renderBoard();
       this.renderDeck();
     }
@@ -352,16 +389,16 @@ export class UIManager {
   // --- Render review items ---
   private renderReviewList(results: any[]): void {
     this.reviewList.innerHTML = '';
-    
+
     results.forEach(r => {
       const item = document.createElement('div');
       item.className = `review-item ${r.isCorrect ? 'correct' : 'incorrect'}`;
 
       const icon = r.isCorrect ? '✔️' : '❌';
       const statusText = r.isCorrect ? 'ถูกต้อง' : 'ผิดพลาด';
-      
-      const userAnsText = r.userAnswers && r.userAnswers.length > 0 
-        ? r.userAnswers.join(', ') 
+
+      const userAnsText = r.userAnswers && r.userAnswers.length > 0
+        ? r.userAnswers.join(', ')
         : '(ยังไม่ได้ระบุ)';
 
       item.innerHTML = `

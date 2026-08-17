@@ -2,7 +2,7 @@ export type VibhattiType = 'ปฐมา' | 'ทุติยา' | 'ตติย
 export type VacanaType = 'เอกวจนะ' | 'พหุวจนะ';
 
 // -------------------------------------------------------------
-//  เพิ่ม 2 โครงสร้างนี้กลับเข้ามา เพื่อแก้ Error ใน gameEngine.ts
+// โครงสร้างดั้งเดิมสำหรับ Vocabulary และ Declension
 // -------------------------------------------------------------
 export interface Declension {
   vibhatti: VibhattiType;
@@ -17,13 +17,15 @@ export interface VocabularyNoun {
   translation: string;
   declension: Declension[];
 }
-// -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// โครงสร้างการ์ดและการวางการ์ดบนกระดาน (Board Placement)
+// -------------------------------------------------------------
 export interface GameCard {
   id: string;
   text: string;
-  correctVibhatti: VibhattiType;
-  correctVacana: VacanaType;
+  correctVibhatti?: VibhattiType;
+  correctVacana?: VacanaType;
 }
 
 export interface PlacedCard {
@@ -31,9 +33,43 @@ export interface PlacedCard {
   text: string;
 }
 
-// ✅ โครงสร้างช่องวางการ์ดแบบ Array (ใส่หลายใบใน 1 ช่องได้)
+// โครงสร้างช่องวางการ์ดแบบ Array (ใส่ได้หลายใบใน 1 ช่อง)
 export interface UserPlacement {
   vibhatti: VibhattiType;
   vacana: VacanaType;
-  cards: PlacedCard[]; 
+  cards: PlacedCard[];
+}
+
+// -------------------------------------------------------------
+// โครงสร้างระบบด่าน (Stage System) และการตรวจผลลัพธ์
+// -------------------------------------------------------------
+export interface CardData {
+  id: string;
+  text: string;
+}
+
+export interface WordData {
+  id: string;
+  stageId: number;
+  stageName: string;
+  gender: 'ปุงลิงค์' | 'อิตถีลิงค์' | 'นปุงสกลิงค์';
+  declensionType: string;
+  word: string;
+  translation: string;
+  forms: Record<string, string[]>;
+}
+
+export interface ReviewResult {
+  vibhatti: VibhattiType;
+  vacana: VacanaType;
+  userAnswers: string[];
+  correctAnswers: string[];
+  isCorrect: boolean;
+}
+
+export interface CheckResult {
+  score: number;
+  total: number;
+  timeTaken: string;
+  results: ReviewResult[];
 }
