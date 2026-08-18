@@ -1,3 +1,4 @@
+import { submitScoreToSheet, getLeaderboardData } from '../leaderboardService';
 import { GameEngine } from './gameEngine';
 import { VibhattiType, VacanaType } from '../types';
 
@@ -16,7 +17,7 @@ export class UIManager {
   private btnReset!: HTMLButtonElement;
   private btnSubmit!: HTMLButtonElement;
   private btnRestart!: HTMLButtonElement;
-  private btnHome!: HTMLButtonElement; // 👈 เพิ่มปุ่มหน้าแรก
+  private btnHome!: HTMLButtonElement;
 
   private currentWordTitle!: HTMLElement;
   private currentWordDesc!: HTMLElement;
@@ -47,7 +48,7 @@ export class UIManager {
     this.btnReset = document.getElementById('btn-reset') as HTMLButtonElement;
     this.btnSubmit = document.getElementById('btn-submit') as HTMLButtonElement;
     this.btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
-    this.btnHome = document.getElementById('btn-home') as HTMLButtonElement; // 👈 ดึง Element #btn-home
+    this.btnHome = document.getElementById('btn-home') as HTMLButtonElement;
 
     this.currentWordTitle = document.getElementById('current-word-title')!;
     this.currentWordDesc = document.getElementById('current-word-desc')!;
@@ -70,10 +71,10 @@ export class UIManager {
     // Reset board
     this.btnReset.addEventListener('click', () => this.handleResetBoard());
 
-    // Play Next / Restart game (เริ่มเล่นคำถัดไปทันที)
+    // Play Next / Restart game
     this.btnRestart.addEventListener('click', () => this.handleStartGame());
 
-    // ✅ กลับหน้าแรก
+    // กลับหน้าแรก
     if (this.btnHome) {
       this.btnHome.addEventListener('click', () => {
         this.stopLiveTimer();
@@ -84,7 +85,7 @@ export class UIManager {
 
   // --- Live Timer Controls ---
   private startLiveTimer(): void {
-    this.stopLiveTimer(); // เคลียร์ interval เก่าถ้ามี
+    this.stopLiveTimer();
 
     this.startTime = Date.now();
     this.timerInterval = setInterval(() => {
@@ -111,21 +112,18 @@ export class UIManager {
   private handleStartGame(): void {
     const word = this.engine.startNewGame();
 
-    // Set UI details
     this.currentWordTitle.innerText = `ศัพท์หลัก: ${word.word}`;
     this.currentWordDesc.innerText = `${word.declensionType} | คำแปล: ${word.translation}`;
     this.currentScore.innerText = this.engine.getScore().toString();
 
-    // Render elements
     this.renderBoard();
     this.renderDeck();
 
     this.switchScreen(this.playScreen);
-    this.startLiveTimer(); // สั่งเริ่มนับเวลาสด
+    this.startLiveTimer();
   }
 
   private handleResetBoard(): void {
-    // ล้างการ์ดออกจากทุกช่องบนตาราง
     const placements = this.engine.getPlacements();
     placements.forEach((p) => {
       p.cards = [];
@@ -136,54 +134,66 @@ export class UIManager {
     this.renderDeck();
   }
 
-  private handleSubmitAnswers(): void {
-    this.stopLiveTimer(); // หยุดนับเวลาสดเมื่อส่งคำตอบ
+  // 🎯 ฟังก์ชันตรวจคำตอบ และบันทึกคะแนนขึ้น Google Sheets / แสดงอันดับ 1
+  private async handleSubmitAnswers(): Promise<void> {
+    this.stopLiveTimer();
 
     const checkResult = this.engine.checkAnswers();
     const currentWord = this.engine.getCurrentWord();
+    const timeTaken = Number(checkResult.timeTaken) || 0;
 
-    // Update score & time
+    // 1. ดึงชื่อผู้เล่นจาก localStorage แล้วส่งข้อมูลขึ้น Google Sheets
+    const playerName = localStorage.getItem('player_name') || 'ผู้เล่นนิรนาม';
+    submitScoreToSheet(playerName, checkResult.score, timeTaken);
+
+    // Update score
     this.finalScore.innerText = `${checkResult.score} / ${checkResult.total}`;
 
-    // Generate feedback message พร้อมแสดงเวลาที่ใช้ และสถิติ
+    // Generate feedback message
     const pct = checkResult.total > 0 ? checkResult.score / checkResult.total : 0;
     const wordName = currentWord ? currentWord.word : 'ศัพท์หลัก';
     const bestTime = this.engine.getBestTime();
 
-    let feedback = `⏱️ คุณใช้เวลาแจกวิภัตติ: ${checkResult.timeTaken} วินาที\n🏆 สถิติเร็วที่สุดในเครื่อง: ${bestTime}\n\n`;
+    let feedback = `👤 ผู้เล่น: ${playerName}\n`;
+    feedback += `⏱️ คุณใช้เวลาแจกวิภัตติ: ${checkResult.timeTaken} วินาที\n`;
+    feedback += `🏆 สถิติเร็วที่สุดในเครื่อง: ${bestTime}\n\n`;
 
     if (pct === 1) {
-      feedback += `สุดยอดมาก! 🎉 คุณตอบถูกวิภัตติของ ${wordName} ครบถ้วน 100%`;
+      feedback += `สุดยอดมาก! 🎉 คุณตอบถูกวิภัตติของ ${wordName} ครบถ้วน 100%\n`;
     } else if (pct >= 0.7) {
-      feedback += `เก่งมากครับ! 😊 คุณจำวิภัตติส่วนใหญ่ของ ${wordName} ได้ถูกต้องแล้ว`;
+      feedback += `เก่งมากครับ! 😊 คุณจำวิภัตติส่วนใหญ่ของ ${wordName} ได้ถูกต้องแล้ว\n`;
     } else if (pct >= 0.4) {
-      feedback += 'พยายามต่อไปครับ! 👍 ลองทบทวนตารางแจกวิภัตติเพิ่มเติมอีกนิดนะครับ';
+      feedback += 'พยายามต่อไปครับ! 👍 ลองทบทวนตารางแจกวิภัตติเพิ่มเติมอีกนิดนะครับ\n';
     } else {
-      feedback += 'ลองใหม่อีกครั้งนะครับ! 📖 มาทบทวนตารางวิภัตติไปด้วยกัน';
+      feedback += 'ลองใหม่อีกครั้งนะครับ! 📖 มาทบทวนตารางวิภัตติไปด้วยกัน\n';
     }
+
     this.feedbackMessage.innerText = feedback;
 
-    // เปลี่ยนข้อความปุ่มให้เหมาะกับการเล่นรอบถัดไป
+    // 2. ดึงข้อมูลตารางอันดับ 1 ออนไลน์มาแสดงเพิ่มใน Feedback
+    try {
+      const { rank1 } = await getLeaderboardData();
+      if (rank1) {
+        this.feedbackMessage.innerText += `\n👑 ผู้ครองอันดับ 1 ออนไลน์ปัจจุบัน: ${rank1.username} (${rank1.score} คะแนน | ${rank1.time}s)`;
+      }
+    } catch (e) {
+      console.error('Error loading leaderboard rank 1:', e);
+    }
+
     this.btnRestart.innerText = '🔄 เล่นคำถัดไป / เริ่มใหม่';
-
-    // Render review items
     this.renderReviewList(checkResult.results);
-
     this.switchScreen(this.resultsScreen);
   }
 
-  // Render ตารางแบบ Table
   private renderBoard(): void {
     this.boardGrid.innerHTML = '';
     const vibhattis: VibhattiType[] = ['ปฐมา', 'ทุติยา', 'ตติยา', 'จตุตถี', 'ปัญจมี', 'ฉัฏฐี', 'สัตตมี', 'อาลปนะ'];
     const vacanas: VacanaType[] = ['เอกวจนะ', 'พหุวจนะ'];
     const placements = this.engine.getPlacements();
 
-    // สร้างโครงสร้าง Table
     const table = document.createElement('table');
     table.className = 'vibhatti-table';
 
-    // Header ของตาราง
     const thead = document.createElement('thead');
     thead.innerHTML = `
       <tr>
@@ -199,13 +209,11 @@ export class UIManager {
     for (const vibhatti of vibhattis) {
       const tr = document.createElement('tr');
 
-      // หัวข้อวิภัตติประจำแถว
       const tdLabel = document.createElement('td');
       tdLabel.className = 'vibhatti-label';
       tdLabel.innerText = vibhatti;
       tr.appendChild(tdLabel);
 
-      // สร้างช่องวาง (Dropzone) ให้ เอกวจนะ และ พหุวจนะ
       for (const vacana of vacanas) {
         const key = `${vibhatti}-${vacana}`;
         const p = placements.get(key)!;
@@ -229,7 +237,6 @@ export class UIManager {
             textSpan.innerText = cardData.text;
             card.appendChild(textSpan);
 
-            // ปุ่มกดลบการ์ดเฉพาะใบ
             const btnRemove = document.createElement('button');
             btnRemove.className = 'btn-remove';
             btnRemove.innerHTML = '&times;';
@@ -241,7 +248,6 @@ export class UIManager {
             });
             card.appendChild(btnRemove);
 
-            // Setup Drag events
             card.addEventListener('dragstart', (e) => this.handleDragStart(e, cardData.cardId, cardData.text));
             card.addEventListener('dragend', () => this.handleDragEnd());
 
@@ -256,12 +262,9 @@ export class UIManager {
 
         tdSlot.appendChild(cardsWrapper);
 
-        // Setup dropzone events
         tdSlot.addEventListener('dragover', (e) => this.handleDragOver(e));
         tdSlot.addEventListener('dragleave', () => tdSlot.classList.remove('drag-over'));
         tdSlot.addEventListener('drop', (e) => this.handleDrop(e, vibhatti, vacana));
-
-        // Tap selection สำหรับจอมือถือ
         tdSlot.addEventListener('click', () => this.handleSlotClick(vibhatti, vacana));
 
         tr.appendChild(tdSlot);
@@ -300,11 +303,9 @@ export class UIManager {
       cardEl.innerText = card.text;
       cardEl.draggable = true;
 
-      // Drag and drop event listeners
       cardEl.addEventListener('dragstart', (e) => this.handleDragStart(e, card.id, card.text));
       cardEl.addEventListener('dragend', () => this.handleDragEnd());
 
-      // Click event for selection (mobile fallback)
       cardEl.addEventListener('click', (e) => {
         e.stopPropagation();
         this.handleSourceCardClick(cardEl);
