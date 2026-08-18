@@ -1,3 +1,4 @@
+import './loginOverlay';
 import './style.css';
 import { GameEngine } from './components/gameEngine';
 import { UIManager } from './components/uiManager';
