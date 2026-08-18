@@ -3,8 +3,8 @@
 // 🟢 รหัสผ่านสำหรับเข้าเล่นเกม
 const CORRECT_PASSWORD = "yourPassword123";
 
-// 🟢 https://script.google.com/macros/s/AKfycbxcXKU-4Jx5FvAoBiuvCras-j6FPdbJD0TtN7dmmQJF7EN281567PE2XRkqAJsPYWisbA/exec
-const SHEET_SCRIPT_URL = "";
+// 🟢 URL ของ Google Apps Script Web App สำหรับบันทึก/ดึงประวัติการเข้าใช้งาน
+const SHEET_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxcXKU-4Jx5FvAoBiuvCras-j6FPdbJD0TtN7dmmQJF7EN281567PE2XRkqAJsPYWisbA/exec";
 
 // ───────────────────────────────────────────────────────
 // ฟังก์ชัน: ส่ง POST บันทึกการล็อกอินไปยัง Google Sheets
